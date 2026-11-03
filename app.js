@@ -182,8 +182,10 @@
         '<span class="tl-name">' + (marks[b.id] ? "✓ " : "") + b.name + '</span>' +
         '<span class="tl-track"><i style="--cc:' + CAT[b.cat].color + ';left:' + (b.off / SPAN * 100).toFixed(2) + '%;width:' + (b.dur / SPAN * 100).toFixed(2) + '%"></i>' + nowLine + '</span></button>';
     }
-    $("tl").innerHTML = html;
-    $("tl-meta").textContent = key === now.key ? "Today" : DAY_NAMES[dowOf(key)] + " " + dateOf(key).getDate();
+    const box = $("tl"), meta = $("tl-meta");
+    if (!box) return; // an older index.html without the widget: skip it rather than break the page
+    box.innerHTML = html;
+    if (meta) meta.textContent = key === now.key ? "Today" : DAY_NAMES[dowOf(key)] + " " + dateOf(key).getDate();
   }
 
   function renderBoard(now) {
@@ -234,7 +236,10 @@
       (S.STREAM_DAYS.includes(dowOf(now.key)) ? " · stream night" : "");
     const w = $("wake-input");
     if (document.activeElement !== w) w.value = pad(Math.floor(state.wake / 60)) + ":" + pad(state.wake % 60);
-    renderStats(now); renderTimeline(now); renderDays(now); renderRundown(now); renderBoard(now); renderHours(); renderSync();
+    // Each section renders on its own, so a problem in one never blanks the others.
+    for (const part of [renderStats, renderTimeline, renderDays, renderRundown, renderBoard, renderHours, renderSync]) {
+      try { part(now); } catch (err) { console.error("Daily Rundown: " + part.name + " failed", err); }
+    }
   }
 
   let toastTimer;

@@ -1,6 +1,6 @@
 // Offline support. Network first: when the phone is online it always gets the newest
 // files (so schedule edits show up on the next open); offline, it falls back to the saved copy.
-const CACHE = "daily-rundown-v1";
+const CACHE = "daily-rundown-v2";
 const SHELL = ["./", "index.html", "styles.css", "schedule.js", "app.js", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png"];
 
 self.addEventListener("install", event => {
@@ -18,8 +18,11 @@ self.addEventListener("activate", event => {
 self.addEventListener("fetch", event => {
   const req = event.request;
   if (req.method !== "GET") return;
+  // App files always check with GitHub for a newer copy (skipping the browser's ~10 min cache),
+  // so an upload shows up on the next open and old and new files never get mixed.
+  const sameOrigin = new URL(req.url).origin === self.location.origin;
   event.respondWith(
-    fetch(req)
+    fetch(req, sameOrigin ? { cache: "no-cache" } : undefined)
       .then(res => {
         // Keep a copy of app files and fonts for offline use.
         if (res.ok || res.type === "opaque") {
