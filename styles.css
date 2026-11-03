@@ -1,4 +1,4 @@
-/* Layout: a broadcast rundown sheet. Stats on top, the full-width day rundown with timeline bars, week board + hours + backup underneath. */
+/* Layout: stats on top, the full-width day schedule with timeline bars, week board + hours + backup underneath. */
 :root {
   --bg: #EDF0F4;
   --surface: #FFFFFF;
@@ -10,6 +10,7 @@
   --tally-soft: #FDE4E7;
   --done: #0B8F55;
   --done-soft: #D7F5E4;
+  --done-fill: #15803D;  /* checked-off rows; dark enough for white text in both themes */
   --warn: #8A6A12;
   --c-body: #1F6BFF;
   --c-fuel: #F2600C;
@@ -64,14 +65,6 @@ button { cursor: pointer; }
 .panel-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px 10px; }
 .panel-h h2 { font-family: var(--f-display); font-weight: 700; font-size: 20px; text-transform: uppercase; letter-spacing: .03em; }
 
-/* Checkbox */
-.check { display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 0; background: none; width: 28px; height: 28px; }
-.check .box { width: 20px; height: 20px; border: 2px solid var(--muted); border-radius: 5px; background: var(--surface); display: grid; place-items: center; transition: background .12s, border-color .12s; }
-.check[aria-checked="true"] .box { background: var(--done); border-color: var(--done); }
-.check[aria-checked="true"] .box::after { content: ""; width: 5px; height: 10px; border: solid var(--surface); border-width: 0 2.5px 2.5px 0; transform: translateY(-1px) rotate(45deg); }
-.check:hover:not(:disabled) .box { border-color: var(--done); }
-.check:disabled { cursor: not-allowed; opacity: .4; }
-
 /* Stats strip */
 .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
 .stat { background: var(--surface); padding: 12px 14px; }
@@ -89,33 +82,51 @@ button { cursor: pointer; }
 .day[aria-selected="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
 .day.is-today .d { color: var(--tally); }
 
-/* Rundown rows */
-.rundown { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
-.row { display: grid; grid-template-columns: 28px 70px 38px minmax(0, 1fr) minmax(170px, 42%); gap: 10px; align-items: center; padding: 5px 16px 5px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+/* Schedule rows. A task row is one big button (.ri): tap anywhere on it to check it off.
+   Checked-off rows turn green with a white check in the first column. */
+.schedule { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.row { border-bottom: 1px solid var(--line); }
 .row:last-child { border-bottom: 0; }
+.ri { display: grid; grid-template-columns: 22px 70px minmax(0, 1fr) 64px minmax(170px, 42%); gap: 10px; align-items: center; width: 100%; min-height: 40px; padding: 5px 16px 5px 10px; border: 0; background: none; text-align: left; white-space: nowrap; -webkit-tap-highlight-color: transparent; }
+button.ri[aria-disabled="true"] { cursor: default; }
+button.ri:focus-visible { outline-offset: -3px; }
+@media (hover: hover) {
+  .row.task:not(.done) button.ri:not([aria-disabled="true"]):hover { background: var(--surface-2); }
+  .row.done button.ri:hover { background: rgba(0, 0, 0, .1); }
+}
+button.ri:not([aria-disabled="true"]):active { background: rgba(0, 0, 0, .08); }
+.mark { justify-self: center; width: 20px; height: 20px; display: grid; place-items: center; }
 .row .t { font-family: var(--f-mono); font-size: 13px; font-weight: 600; }
-.row .dur { font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
+.row .dur { font-family: var(--f-mono); font-size: 12px; color: var(--muted); text-align: right; white-space: nowrap; }
 .seg { min-width: 0; display: flex; align-items: center; gap: 8px; }
 .seg .sq { flex: none; width: 9px; height: 9px; border-radius: 2px; background: var(--cc, var(--c-reset)); }
 .seg .sq.miss { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--tally); }
-.seg .name { flex: none; font-weight: 600; }
-.seg .sub { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 13px; color: var(--muted); }
-.pill { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; padding: 2px 7px; border-radius: 99px; }
+.seg .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.pill { flex: none; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; padding: 2px 7px; border-radius: 99px; }
 .pill.air { background: var(--tally); color: var(--surface); }
 .row.free .name { font-weight: 500; color: var(--muted); }
 /* Day timeline: each row's bar sits on a shared wake → wake+15h track, gridlines every 3 hours. */
-.trk { position: relative; height: 10px; border-radius: 3px; background: linear-gradient(to right, var(--line) 1px, transparent 1px) 0 0 / 20% 100% repeat-x, var(--surface-2); }
+.trk { display: block; position: relative; height: 10px; border-radius: 3px; background: linear-gradient(to right, var(--line) 1px, transparent 1px) 0 0 / 20% 100% repeat-x, var(--surface-2); }
 .trk i { position: absolute; top: 0; bottom: 0; min-width: 3px; border-radius: 2px; background: var(--cc, var(--c-reset)); }
 .row.free .trk i { opacity: .75; }
 .trk i.sleep { left: auto !important; right: 0; width: 6px !important; border-radius: 2px 0 0 2px; }
 .trk .nowline { position: absolute; top: -6px; bottom: -6px; width: 2px; margin-left: -1px; background: var(--tally); }
-.row.axis { padding-block: 6px 4px; }
+.row.axis .ri { min-height: 0; padding-block: 6px 4px; }
 .ax { position: relative; height: 14px; font-family: var(--f-mono); font-size: 10px; color: var(--muted); }
 .ax span { position: absolute; transform: translateX(-50%); }
 .ax span:first-child { transform: none; }
 .ax span:last-child { transform: translateX(-100%); }
 .row.now { background: var(--tally-soft); }
 .row.past.free { opacity: .6; }
+.row.done { background: var(--done-fill); color: #fff; }
+.row.done .t, .row.done .dur { color: rgba(255, 255, 255, .88); }
+.row.done .seg .sq { box-shadow: 0 0 0 1.5px #fff; }
+.row.done .mark::after { content: ""; width: 6px; height: 12px; border: solid #fff; border-width: 0 3px 3px 0; transform: translateY(-2px) rotate(45deg); }
+.row.done .trk { background: linear-gradient(to right, rgba(255, 255, 255, .3) 1px, transparent 1px) 0 0 / 20% 100% repeat-x, rgba(255, 255, 255, .18); }
+.row.pop { animation: pop .25s ease-out; }
+.row.pop .mark::after { animation: pop-mark .25s ease-out; }
+@keyframes pop { from { background: var(--surface); } }
+@keyframes pop-mark { from { transform: translateY(-2px) rotate(45deg) scale(.3); } }
 .note-box { padding: 14px 16px 16px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; }
 .note-box textarea { width: 100%; min-height: 64px; resize: vertical; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
 
@@ -163,7 +174,7 @@ button { cursor: pointer; }
 .tl-axis span:last-child { transform: translateX(-100%); }
 .row.flash { animation: flash 1.2s ease-out; }
 @keyframes flash { from { background: var(--done-soft); } }
-@media (prefers-reduced-motion: reduce) { .row.flash { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .row.flash, .row.pop, .row.pop .mark::after { animation: none; } }
 
 .toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--surface); padding: 9px 14px; border-radius: 8px; font-size: 13px; max-width: calc(100% - 32px); }
 
@@ -171,10 +182,10 @@ button { cursor: pointer; }
 @media (max-width: 760px) {
   .side { grid-template-columns: minmax(0, 1fr); }
   .tl-panel { display: block; }
-  .row { grid-template-columns: 28px 70px 38px minmax(0, 1fr); }
+  .ri { grid-template-columns: 22px 70px minmax(0, 1fr) auto; }
   .row .trk, .row.axis { display: none; }
 }
-/* Phone: day tabs fit in one row, each block's goal drops under its name, the week board fits the width. */
+/* Phone: day tabs fit in one row, long block names wrap instead of cutting off, the week board fits the width. */
 @media (max-width: 560px) {
   .wrap { gap: 14px; }
   .grid, .main, .side, .side-col { gap: 14px; }
@@ -189,13 +200,9 @@ button { cursor: pointer; }
   .day .d { font-size: 10px; letter-spacing: .02em; }
   .day .live-tag { font-size: 8px; letter-spacing: .04em; }
 
-  .row { grid-template-columns: 28px 66px minmax(0, 1fr); gap: 0 8px; align-items: start; padding: 7px 12px 7px 6px; white-space: normal; }
-  .row .dur { display: none; }
-  .row .t { padding-top: 4px; font-size: 12px; }
-  .seg { flex-wrap: wrap; gap: 0 8px; padding-top: 3px; }
-  .seg .sq { align-self: center; }
-  .seg .name { flex: 0 1 auto; min-width: 0; }
-  .seg .sub { flex-basis: 100%; padding-left: 17px; white-space: normal; overflow: visible; font-size: 12.5px; line-height: 1.35; }
+  .ri { grid-template-columns: 20px 62px minmax(0, 1fr) auto; gap: 0 8px; min-height: 46px; padding: 6px 12px 6px 6px; white-space: normal; }
+  .row .t { font-size: 12px; }
+  .seg .name { overflow: visible; line-height: 1.3; }
   .note-box { padding: 12px; }
 
   .board-wrap { padding: 0 4px 10px; }

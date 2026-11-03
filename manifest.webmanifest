@@ -1,6 +1,6 @@
 {
-  "name": "Daily Rundown",
-  "short_name": "Rundown",
+  "name": "Daily Schedule",
+  "short_name": "Schedule",
   "description": "Daily schedule with check-offs, a day timeline and a week board.",
   "start_url": "./",
   "scope": "./",

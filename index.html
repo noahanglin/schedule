@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Daily Rundown</title>
+<title>Daily Schedule</title>
 <meta name="description" content="Daily schedule with check-offs, a day timeline and a week board.">
 <meta name="theme-color" content="#EDF0F4" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0E1116" media="(prefers-color-scheme: dark)">
@@ -14,13 +14,13 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=JetBrains+Mono:wght@500;600&family=Public+Sans:wght@400;500;600;700&display=swap">
 <!-- ?v= is bumped whenever app.js, styles.css or index.html change, so the phone never mixes old and new files. Edits to schedule.js alone don't need it. -->
-<link rel="stylesheet" href="styles.css?v=3">
+<link rel="stylesheet" href="styles.css?v=4">
 </head>
 <body>
 <div class="wrap">
   <header class="top">
     <div class="brand">
-      <h1>Daily Rundown</h1>
+      <h1>Daily Schedule</h1>
       <p id="dateline">&nbsp;</p>
     </div>
     <div class="controls">
@@ -41,11 +41,11 @@
 
       <section class="panel">
         <div class="panel-h">
-          <h2 id="rundown-title">Today's rundown</h2>
-          <span class="label" id="rundown-meta"></span>
+          <h2 id="schedule-title">Today's schedule</h2>
+          <span class="label" id="schedule-meta"></span>
         </div>
         <div class="days" id="days" role="tablist" aria-label="Day of week"></div>
-        <ol class="rundown" id="rundown"></ol>
+        <ol class="schedule" id="schedule"></ol>
         <div class="note-box">
           <label class="label" for="day-note">Day note: what helped, what got in the way</label>
           <textarea id="day-note" placeholder="e.g. Skipped editing, phone ate the afternoon. Try leaving it in the other room."></textarea>
@@ -59,7 +59,7 @@
         <div class="board-wrap"><table class="board" id="board"></table></div>
         <div class="legend">
           <span><i class="dot done"></i>Done</span>
-          <span><i class="dot miss"></i>Not checked</span>
+          <span><i class="dot miss"></i>Not done</span>
           <span><i class="dot plan"></i>Coming up</span>
         </div>
       </section>
@@ -87,8 +87,8 @@
 </div>
 <div class="toast" id="toast" role="status" hidden></div>
 
-<script src="schedule.js?v=3"></script>
-<script src="app.js?v=3"></script>
+<script src="schedule.js?v=4"></script>
+<script src="app.js?v=4"></script>
 <script>
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => { navigator.serviceWorker.register("sw.js").catch(() => {}); });

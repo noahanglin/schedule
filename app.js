@@ -6,7 +6,7 @@
   const CAT = S.CATEGORIES;
   const SPAN = S.SPAN;
   const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  const STORE_KEY = "dailyRundown.v1";
+  const STORE_KEY = "dailyRundown.v1"; // from the app's first name; kept so saved check-offs carry over
 
   // ---------- State ----------
   const state = {
@@ -36,7 +36,8 @@
     }
     state.days = days;
   }
-  function snapshot() { return { app: "daily-rundown", version: 1, wake: state.wake, days: state.days }; }
+  function snapshot() { return { app: "daily-schedule", version: 1, wake: state.wake, days: state.days }; }
+  const BACKUP_IDS = ["daily-schedule", "daily-rundown"]; // older backups were made under the first name
   function save() {
     try {
       localStorage.setItem(STORE_KEY, JSON.stringify(snapshot()));
@@ -61,7 +62,7 @@
     return h + ":" + pad(mm) + " " + ap;
   }
   function fmtS(mins) { return fmt(mins).replace(" AM", "a").replace(" PM", "p"); }
-  function fmtDur(d) { return d >= 60 ? (Math.floor(d / 60) + "h" + (d % 60 ? pad(d % 60) : "")) : d + "m"; }
+  function fmtDur(d) { return d >= 60 ? (Math.floor(d / 60) + "h" + (d % 60 ? " " + d % 60 + "m" : "")) : d + "m"; }
   // Until a few hours before wake time it still counts as the previous day (late streams, late nights).
   function nowInfo() {
     const n = new Date();
@@ -70,7 +71,7 @@
     if (mins < Math.max(240, state.wake - 300)) { key = addDays(key, -1); mins += 1440; }
     return { key, mins };
   }
-  function planFor(dow) { return S.planFor(dow, off => fmt(state.wake + off)); }
+  function planFor(dow) { return S.planFor(dow); }
 
   // ---------- Scoring ----------
   function marksFor(key) { return (state.days[key] && state.days[key].marks) || {}; }
@@ -95,12 +96,6 @@
 
   // ---------- Rendering ----------
   const $ = id => document.getElementById(id);
-
-  function checkBox(key, b, now) {
-    const done = !!marksFor(key)[b.id];
-    const dis = key > now.key ? " disabled" : "";
-    return '<button type="button" class="check" role="checkbox" data-check data-key="' + key + '" data-id="' + b.id + '" aria-checked="' + done + '"' + dis + ' aria-label="' + b.name + ' done"><span class="box"></span></button>';
-  }
 
   function renderStats(now) {
     const s = dayScore(now.key);
@@ -132,15 +127,17 @@
     $("days").innerHTML = html;
   }
 
-  function renderRundown(now) {
+  // Each task row is one big button: tap anywhere on it to check it off. Free-time rows aren't checked off.
+  function renderSchedule(now) {
     const key = state.selected;
     const plan = planFor(dowOf(key));
-    $("rundown-title").textContent = key === now.key ? "Today's rundown" : dateOf(key).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
+    const marks = marksFor(key);
+    $("schedule-title").textContent = key === now.key ? "Today's schedule" : dateOf(key).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
     const s = dayScore(key);
-    $("rundown-meta").textContent = s.done + " of " + s.total + " checked";
+    $("schedule-meta").textContent = s.done + " of " + s.total + " done";
     // Timeline axis: wake time to lights out, labelled every 3 hours.
-    let html = '<li class="row axis" aria-hidden="true"><span></span><span></span><span></span><span></span><div class="ax">' +
-      [0, 180, 360, 540, 720, 900].map(o => '<span style="left:' + (o / SPAN * 100) + '%">' + fmtS(state.wake + o).replace(":00", "") + '</span>').join("") + '</div></li>';
+    let html = '<li class="row axis" aria-hidden="true"><div class="ri"><span></span><span></span><span></span><span></span><div class="ax">' +
+      [0, 180, 360, 540, 720, 900].map(o => '<span style="left:' + (o / SPAN * 100) + '%">' + fmtS(state.wake + o).replace(":00", "") + '</span>').join("") + '</div></div></li>';
     const nowOff = now.mins - state.wake;
     const nowLine = key === now.key && nowOff >= 0 && nowOff <= SPAN ? '<span class="nowline" style="left:' + (nowOff / SPAN * 100).toFixed(2) + '%"></span>' : "";
     for (const b of plan) {
@@ -148,20 +145,20 @@
       const isNow = key === now.key && now.mins >= start && now.mins < end;
       const isPast = key < now.key || (key === now.key && now.mins >= end);
       const st = b.check ? blockState(key, b, now) : null;
-      const cls = "row" + (b.check ? "" : " free") + (isNow ? " now" : "") + (isPast ? " past" : "");
-      const sub = b.check ? b.goal : b.sub;
-      const tip = b.name + ' (' + CAT[b.cat].label + '): ' + sub + (st === "miss" ? ', not checked' : '');
-      html += '<li class="' + cls + '" data-row="' + b.id + '" title="' + tip + '">' +
-        (b.check ? checkBox(key, b, now) : '<span></span>') +
+      const cls = "row" + (b.check ? " task" : " free") + (marks[b.id] ? " done" : "") + (isNow ? " now" : "") + (isPast ? " past" : "");
+      const cells =
+        '<span class="mark" aria-hidden="true"></span>' +
         '<span class="t">' + fmt(start) + '</span>' +
+        '<span class="seg"><span class="sq' + (st === "miss" ? " miss" : "") + '" style="--cc:' + CAT[b.cat].color + '"></span>' +
+        '<span class="name">' + b.name + '</span>' + (isNow ? '<span class="pill air">Now</span>' : '') + '</span>' +
         '<span class="dur">' + fmtDur(b.dur) + '</span>' +
-        '<div class="seg"><span class="sq' + (st === "miss" ? " miss" : "") + '" style="--cc:' + CAT[b.cat].color + '"></span>' +
-        '<span class="name">' + b.name + '</span>' + (isNow ? '<span class="pill air">Now</span>' : '') +
-        '<span class="sub">' + sub + '</span></div>' +
-        '<div class="trk" aria-hidden="true"><i class="' + (b.off >= SPAN ? "sleep" : "") + '" style="--cc:' + CAT[b.cat].color + ';left:' + (b.off / SPAN * 100).toFixed(2) + '%;width:' + (b.dur / SPAN * 100).toFixed(2) + '%"></i>' + nowLine + '</div>' +
-        '</li>';
+        '<span class="trk" aria-hidden="true"><i class="' + (b.off >= SPAN ? "sleep" : "") + '" style="--cc:' + CAT[b.cat].color + ';left:' + (b.off / SPAN * 100).toFixed(2) + '%;width:' + (b.dur / SPAN * 100).toFixed(2) + '%"></i>' + nowLine + '</span>';
+      html += '<li class="' + cls + '" data-row="' + b.id + '">' + (b.check
+        ? '<button type="button" class="ri" role="checkbox" aria-checked="' + !!marks[b.id] + '"' + (key > now.key ? ' aria-disabled="true"' : '') +
+          ' data-check data-key="' + key + '" data-id="' + b.id + '">' + cells + '</button>'
+        : '<div class="ri">' + cells + '</div>') + '</li>';
     }
-    $("rundown").innerHTML = html;
+    $("schedule").innerHTML = html;
     const note = $("day-note");
     if (document.activeElement !== note) note.value = (state.days[key] && state.days[key].note) || "";
     note.disabled = key > now.key;
@@ -237,8 +234,8 @@
     const w = $("wake-input");
     if (document.activeElement !== w) w.value = pad(Math.floor(state.wake / 60)) + ":" + pad(state.wake % 60);
     // Each section renders on its own, so a problem in one never blanks the others.
-    for (const part of [renderStats, renderTimeline, renderDays, renderRundown, renderBoard, renderHours, renderSync]) {
-      try { part(now); } catch (err) { console.error("Daily Rundown: " + part.name + " failed", err); }
+    for (const part of [renderStats, renderTimeline, renderDays, renderSchedule, renderBoard, renderHours, renderSync]) {
+      try { part(now); } catch (err) { console.error("Daily Schedule: " + part.name + " failed", err); }
     }
   }
 
@@ -253,18 +250,26 @@
 
   document.addEventListener("click", e => {
     const m = e.target.closest("[data-check]");
-    if (m && !m.disabled) {
+    if (m) {
+      if (m.getAttribute("aria-disabled") === "true") { toast("That day hasn't come yet. Check it off on the day."); return; }
       const key = m.dataset.key, id = m.dataset.id;
+      const refocus = document.activeElement === m;
       const d = dayRecord(key);
       d.marks = Object.assign({}, d.marks);
       if (d.marks[id]) delete d.marks[id]; else d.marks[id] = true;
       save(); render();
+      // The list was redrawn: keep focus on the same row, and let a fresh check-off fade in.
+      const row = document.querySelector('#schedule [data-row="' + id + '"]');
+      if (row) {
+        if (refocus) row.querySelector("[data-check]").focus({ preventScroll: true });
+        if (d.marks[id]) row.classList.add("pop");
+      }
       if (d.marks[id] && id === "workout") toast("Workout logged. The rest of the day gets easier from here.");
       return;
     }
     const go = e.target.closest("[data-goto]");
     if (go) {
-      const row = document.querySelector('#rundown [data-row="' + go.dataset.goto + '"]');
+      const row = document.querySelector('#schedule [data-row="' + go.dataset.goto + '"]');
       if (row) {
         row.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "center" });
         row.classList.remove("flash"); void row.offsetWidth; row.classList.add("flash");
@@ -301,7 +306,7 @@
     const blob = new Blob([JSON.stringify(snapshot(), null, 2)], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = "daily-rundown-backup-" + keyOf(new Date()) + ".json";
+    a.download = "daily-schedule-backup-" + keyOf(new Date()) + ".json";
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     toast("Backup saved to your downloads.");
@@ -314,12 +319,12 @@
     if (!file) return;
     try {
       const data = JSON.parse(await file.text());
-      if (data.app !== "daily-rundown") throw new Error("wrong file");
+      if (!BACKUP_IDS.includes(data.app)) throw new Error("wrong file");
       if (!confirm("Replace the check-offs and notes on this device with the backup from " + file.name + "?")) return;
       applyData(data); save(); render();
       toast("Backup imported.");
     } catch (_) {
-      toast("That file isn't a Daily Rundown backup. Pick a file you exported from this app.");
+      toast("That file isn't a Daily Schedule backup. Pick a file you exported from this app.");
     }
   });
 
