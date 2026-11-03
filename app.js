@@ -151,7 +151,7 @@
       const cls = "row" + (b.check ? "" : " free") + (isNow ? " now" : "") + (isPast ? " past" : "");
       const sub = b.check ? b.goal : b.sub;
       const tip = b.name + ' (' + CAT[b.cat].label + '): ' + sub + (st === "miss" ? ', not checked' : '');
-      html += '<li class="' + cls + '" title="' + tip + '">' +
+      html += '<li class="' + cls + '" data-row="' + b.id + '" title="' + tip + '">' +
         (b.check ? checkBox(key, b, now) : '<span></span>') +
         '<span class="t">' + fmt(start) + '</span>' +
         '<span class="dur">' + fmtDur(b.dur) + '</span>' +
@@ -165,6 +165,28 @@
     const note = $("day-note");
     if (document.activeElement !== note) note.value = (state.days[key] && state.days[key].note) || "";
     note.disabled = key > now.key;
+  }
+
+  // The whole selected day as one strip. Shown on phones, where the rows have no room for their own bars.
+  function renderTimeline(now) {
+    const key = state.selected;
+    const plan = planFor(dowOf(key));
+    const marks = marksFor(key);
+    const used = new Set();
+    let html = "";
+    for (const b of plan) {
+      if (b.off >= SPAN) continue;
+      used.add(b.cat);
+      const cls = "tl-seg" + (b.check ? "" : " free") + (marks[b.id] ? " done" : "");
+      html += '<button type="button" class="' + cls + '" data-goto="' + b.id + '" aria-label="' + b.name + ', ' + fmt(state.wake + b.off) + ', ' + fmtDur(b.dur) + '"' +
+        ' style="--cc:' + CAT[b.cat].color + ';left:' + (b.off / SPAN * 100).toFixed(2) + '%;width:' + (b.dur / SPAN * 100).toFixed(2) + '%"></button>';
+    }
+    const nowOff = now.mins - state.wake;
+    if (key === now.key && nowOff >= 0 && nowOff <= SPAN) html += '<span class="nowline" style="left:' + (nowOff / SPAN * 100).toFixed(2) + '%"></span>';
+    $("tl-strip").innerHTML = html;
+    $("tl-axis").innerHTML = [0, 180, 360, 540, 720, 900].map(o => '<span style="left:' + (o / SPAN * 100) + '%">' + fmtS(state.wake + o).replace(":00", "") + '</span>').join("");
+    $("tl-legend").innerHTML = Object.keys(CAT).filter(c => used.has(c)).map(c => '<span><i style="--cc:' + CAT[c].color + '"></i>' + CAT[c].label + '</span>').join("");
+    $("tl-meta").textContent = key === now.key ? "Today" : DAY_NAMES[dowOf(key)] + " " + dateOf(key).getDate();
   }
 
   function renderBoard(now) {
@@ -215,7 +237,7 @@
       (S.STREAM_DAYS.includes(dowOf(now.key)) ? " · stream night" : "");
     const w = $("wake-input");
     if (document.activeElement !== w) w.value = pad(Math.floor(state.wake / 60)) + ":" + pad(state.wake % 60);
-    renderStats(now); renderDays(now); renderRundown(now); renderBoard(now); renderHours(); renderSync();
+    renderStats(now); renderTimeline(now); renderDays(now); renderRundown(now); renderBoard(now); renderHours(); renderSync();
   }
 
   let toastTimer;
@@ -236,6 +258,15 @@
       if (d.marks[id]) delete d.marks[id]; else d.marks[id] = true;
       save(); render();
       if (d.marks[id] && id === "workout") toast("Workout logged. The rest of the day gets easier from here.");
+      return;
+    }
+    const go = e.target.closest("[data-goto]");
+    if (go) {
+      const row = document.querySelector('#rundown [data-row="' + go.dataset.goto + '"]');
+      if (row) {
+        row.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "center" });
+        row.classList.remove("flash"); void row.offsetWidth; row.classList.add("flash");
+      }
       return;
     }
     const day = e.target.closest("[data-day]");
