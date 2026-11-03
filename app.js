@@ -167,25 +167,22 @@
     note.disabled = key > now.key;
   }
 
-  // The whole selected day as one strip. Shown on phones, where the rows have no room for their own bars.
+  // The selected day as a labeled Gantt: one lane per event. Shown on phones, where the rows have no room for their own bars.
   function renderTimeline(now) {
     const key = state.selected;
-    const plan = planFor(dowOf(key));
     const marks = marksFor(key);
-    const used = new Set();
-    let html = "";
-    for (const b of plan) {
-      if (b.off >= SPAN) continue;
-      used.add(b.cat);
-      const cls = "tl-seg" + (b.check ? "" : " free") + (marks[b.id] ? " done" : "");
-      html += '<button type="button" class="' + cls + '" data-goto="' + b.id + '" aria-label="' + b.name + ', ' + fmt(state.wake + b.off) + ', ' + fmtDur(b.dur) + '"' +
-        ' style="--cc:' + CAT[b.cat].color + ';left:' + (b.off / SPAN * 100).toFixed(2) + '%;width:' + (b.dur / SPAN * 100).toFixed(2) + '%"></button>';
-    }
     const nowOff = now.mins - state.wake;
-    if (key === now.key && nowOff >= 0 && nowOff <= SPAN) html += '<span class="nowline" style="left:' + (nowOff / SPAN * 100).toFixed(2) + '%"></span>';
-    $("tl-strip").innerHTML = html;
-    $("tl-axis").innerHTML = [0, 180, 360, 540, 720, 900].map(o => '<span style="left:' + (o / SPAN * 100) + '%">' + fmtS(state.wake + o).replace(":00", "") + '</span>').join("");
-    $("tl-legend").innerHTML = Object.keys(CAT).filter(c => used.has(c)).map(c => '<span><i style="--cc:' + CAT[c].color + '"></i>' + CAT[c].label + '</span>').join("");
+    const nowLine = key === now.key && nowOff >= 0 && nowOff <= SPAN ? '<span class="nowline" style="left:' + (nowOff / SPAN * 100).toFixed(2) + '%"></span>' : "";
+    let html = '<div class="tl-lane" aria-hidden="true"><span></span><div class="tl-axis">' +
+      [0, 180, 360, 540, 720, 900].map(o => '<span style="left:' + (o / SPAN * 100) + '%">' + fmtS(state.wake + o).replace(":00", "") + '</span>').join("") + '</div></div>';
+    for (const b of planFor(dowOf(key))) {
+      if (b.off >= SPAN) continue;
+      const cls = "tl-lane" + (b.check ? "" : " free") + (marks[b.id] ? " done" : "");
+      html += '<button type="button" class="' + cls + '" data-goto="' + b.id + '" aria-label="' + b.name + ', ' + fmt(state.wake + b.off) + ', ' + fmtDur(b.dur) + '">' +
+        '<span class="tl-name">' + (marks[b.id] ? "✓ " : "") + b.name + '</span>' +
+        '<span class="tl-track"><i style="--cc:' + CAT[b.cat].color + ';left:' + (b.off / SPAN * 100).toFixed(2) + '%;width:' + (b.dur / SPAN * 100).toFixed(2) + '%"></i>' + nowLine + '</span></button>';
+    }
+    $("tl").innerHTML = html;
     $("tl-meta").textContent = key === now.key ? "Today" : DAY_NAMES[dowOf(key)] + " " + dateOf(key).getDate();
   }
 
